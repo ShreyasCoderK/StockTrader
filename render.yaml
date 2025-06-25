@@ -1,6 +1,6 @@
 services:
   - type: worker
-    name: stock-trend-bot
+    name: Stock Trader
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
