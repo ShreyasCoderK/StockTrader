@@ -4,81 +4,61 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import os
 
-# Load the Discord token from environment variable
+# --- Bot Setup ---
 TOKEN = os.getenv("DISCORD_TOKEN")
-
-# Enable required intents
 intents = discord.Intents.default()
 intents.message_content = True
-
-# Create the bot
 bot = commands.Bot(command_prefix='/', intents=intents)
 
-@bot.event
-async def on_ready():
-    print(f"✅ Logged in as {bot.user}")
+# --- Get Ticker List (e.g. S&P 500) ---
+def get_sp500_tickers():
+    # You can expand this later to load all S&P 500 from a file or API
+    return ['AAPL', 'MSFT', 'TSLA', 'GOOGL', 'NVDA', 'AMZN', 'META', 'NFLX']
 
-# ✅ Safe, debugged trending stock checker
-def get_trending_stocks(tickers, days=5, threshold=2.0):
-    end = datetime.now()
-    start = end - timedelta(days=days + 2)
-
-    results = []
-
+# --- Detect Trending Stocks ---
+def find_trending_stocks(tickers):
+    trending = []
+    
     for ticker in tickers:
         try:
-            print(f"🔍 Checking {ticker}")
-            data = yf.download(ticker, start=start, end=end)
-
-            if data.empty or 'Close' not in data.columns:
-                print(f"❌ Skipping {ticker}: no data or missing 'Close'")
+            data = yf.download(ticker, period="7d", interval="1d")
+            if data.empty or len(data) < 5:
                 continue
 
-            closes = data['Close'].dropna()
-
-            if len(closes) < 2:
-                print(f"❌ Skipping {ticker}: not enough closing data")
+            close_prices = data["Close"].dropna()
+            if len(close_prices) < 2:
                 continue
 
-            start_price = closes.iloc[0]
-            end_price = closes.iloc[-1]
+            change = ((close_prices[-1] - close_prices[0]) / close_prices[0]) * 100
 
-            # Log and convert to float
-            print(f"{ticker}: Start = {start_price}, End = {end_price}")
-
-            start_price = float(start_price)
-            end_price = float(end_price)
-
-            change = ((end_price - start_price) / start_price) * 100
-            print(f"{ticker}: Change = {change:.2f}%")
-
-            if change >= float(threshold):
-                results.append(f"{ticker}: 📈 +{round(change, 2)}%")
+            if change > 5:
+                trending.append((ticker, round(change, 2)))
 
         except Exception as e:
-            print(f"⚠️ Error processing {ticker}: {e}")
+            print(f"⚠️ Error checking {ticker}: {e}")
 
-    return results
+    trending.sort(key=lambda x: -x[1])
+    return trending
 
-# Discord command to trigger stock check
-@bot.command(name="trendingstocks")
-async def trendingstocks(ctx):
-    tickers = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA', 'AMZN']
-    await ctx.send("🔍 Checking trending stocks...")
+# --- Discord Command ---
+@bot.command(name="predictstocks")
+async def predictstocks(ctx):
+    await ctx.send("🔍 Scanning for trending stocks...")
+    tickers = get_sp500_tickers()
+    trending = find_trending_stocks(tickers)
 
-    try:
-        results = get_trending_stocks(tickers)
-        if results:
-            await ctx.send("📊 Stocks trending upward:\n" + "\n".join(results))
-        else:
-            await ctx.send("📉 No trending stocks found today.")
-    except Exception as e:
-        await ctx.send(f"⚠️ Error checking stocks: {e}")
-        print(f"⚠️ Bot error: {e}")
+    if not trending:
+        await ctx.send("📉 No trending stocks detected today.")
+    else:
+        message = "📈 Predicted Trending Stocks (Past 7 Days):\n"
+        for ticker, change in trending[:10]:
+            message += f"{ticker}: +{change}%\n"
+        await ctx.send(message)
 
-# Run the bot
+# --- Run Bot ---
 if TOKEN:
     bot.run(TOKEN)
 else:
-    print("❌ DISCORD_TOKEN environment variable is not set.")
+    print("❌ DISCORD_TOKEN environment variable not set.")
+
 
