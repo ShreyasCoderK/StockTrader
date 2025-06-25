@@ -6,21 +6,24 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import os
 
-# Get the bot token securely (recommended for deployment)
-TOKEN = os.getenv("DISCORD_TOKEN")  # Set this in your hosting environment
+# ✅ Load token securely from environment variable
+TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Define the bot
+# ✅ Enable intents including message content
 intents = discord.Intents.default()
+intents.message_content = True  # Required for reading command messages
+
+# ✅ Initialize bot
 bot = commands.Bot(command_prefix='/', intents=intents)
 
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
 
-# Core stock trend logic
+# ✅ Function to find trending stocks
 def get_trending_stocks(tickers, days=5, threshold=2.0):
     end = datetime.now()
-    start = end - timedelta(days=days + 2)  # padding for weekends
+    start = end - timedelta(days=days + 2)  # add buffer for weekends
 
     results = []
 
@@ -37,7 +40,7 @@ def get_trending_stocks(tickers, days=5, threshold=2.0):
 
     return results
 
-# Bot command to check stocks
+# ✅ Bot command
 @bot.command(name="trendingstocks")
 async def trendingstocks(ctx):
     tickers = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA', 'AMZN']
@@ -48,9 +51,12 @@ async def trendingstocks(ctx):
         if results:
             await ctx.send("📊 Stocks trending upward:\n" + "\n".join(results))
         else:
-            await ctx.send("📉 No stocks are trending up right now.")
+            await ctx.send("📉 No trending stocks found today.")
     except Exception as e:
-        await ctx.send(f"⚠️ Error: {e}")
+        await ctx.send(f"⚠️ Error checking stocks: {e}")
 
-# Start the bot
-bot.run(TOKEN)
+# ✅ Run the bot
+if TOKEN:
+    bot.run(TOKEN)
+else:
+    print("❌ DISCORD_TOKEN environment variable is not set.")
