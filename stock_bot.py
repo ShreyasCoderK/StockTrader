@@ -23,14 +23,20 @@ async def on_ready():
 # ✅ Function to find trending stocks
 def get_trending_stocks(tickers, days=5, threshold=2.0):
     end = datetime.now()
-    start = end - timedelta(days=days + 2)  # add buffer for weekends
+    start = end - timedelta(days=days + 2)  # buffer for weekends
 
     results = []
 
     for ticker in tickers:
         data = yf.download(ticker, start=start, end=end)
-        if len(data) < 2:
+
+        if data.empty or 'Close' not in data:
             continue
+
+        # Make sure we have enough data points
+        if len(data['Close']) < 2:
+            continue
+
         start_price = data['Close'].iloc[0]
         end_price = data['Close'].iloc[-1]
         change = ((end_price - start_price) / start_price) * 100
@@ -39,6 +45,7 @@ def get_trending_stocks(tickers, days=5, threshold=2.0):
             results.append(f"{ticker}: 📈 +{round(change, 2)}%")
 
     return results
+
 
 # ✅ Bot command
 @bot.command(name="trendingstocks")
