@@ -1,3 +1,5 @@
 discord.py
 yfinance
 pandas
+scikit-learn
+ta
